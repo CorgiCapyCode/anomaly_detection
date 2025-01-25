@@ -1,0 +1,31 @@
+services:
+  anomaly_detection:
+    image: anomaly_detection_image:latest
+    ports:
+      - "5001:5001"
+    environment:
+      - DASHBOARD_SERVICE_URL=http://production-dashboard-1:5002/receive_data
+    networks:
+      - anomaly_network
+
+  stream_data:
+    image: stream_data_image:latest
+    ports:
+      - "5000:5000"
+    environment:
+      - DETECTION_SERVICE_URL=http://production-anomaly_detection-1:5001/anomaly_detection
+    networks:
+      - anomaly_network
+
+  dashboard:
+    image: dashboard_image:latest
+    ports:
+      - "5002:5002"
+    environment:
+      - FLASK_ENV=production
+    networks:
+      - anomaly_network
+
+networks:
+  anomaly_network:
+    driver: bridge

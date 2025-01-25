@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        .column {
+            float: left;
+            width: 45%;
+            margin: 2%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            box-shadow: 2px 2px 8px #aaa;
+        }
+        .row {
+            display: flex;
+            justify-content: space-between;
+        }
+        .entry {
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="row">
+        <div class="column">
+            <h2>All Data</h2>
+            <div id="received-data"></div>
+        </div>
+        <div class="column">
+            <h2>Anomalies</h2>
+            <div id="anomalies"></div>
+        </div>
+    </div>
+
+    <script>
+        const maxEntries = 10; // Maximum number of entries to display
+        let receivedDataList = [];
+        let anomaliesList = [];
+
+
+        function updateColumn(containerId, dataList, newData) {
+
+            dataList.push(...newData);
+
+            if (dataList.length > maxEntries) {
+                dataList.splice(0, dataList.length - maxEntries);
+            }
+
+            const container = document.getElementById(containerId);
+            container.innerHTML = '';
+            dataList.forEach(item => {
+                const entryDiv = document.createElement('div');
+                entryDiv.className = 'entry';
+                entryDiv.textContent = JSON.stringify(item);
+                container.appendChild(entryDiv);
+            });
+        }
+
+        async function fetchLatestData() {
+            try {
+                const response = await fetch('/latest_data');
+                if (response.ok) {
+                    const data = await response.json();
+
+                    updateColumn('received-data', receivedDataList, data.received_data);
+
+                    updateColumn('anomalies', anomaliesList, data.anomalies);
+                } else {
+                    console.error('Failed to fetch latest data:', response.statusText);
+                }
+            } catch (error) {
+                console.error('Error fetching data:', error);
+            }
+        }
+
+        setInterval(fetchLatestData, 750); // Fetch data every 0.75 seconds
+    </script>
+</body>
+</html>
