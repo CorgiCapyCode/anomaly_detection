@@ -51,9 +51,61 @@ resource "aws_internet_gateway" "internet_gateway" {
   }
 }
 
+
+
+#Elastic IP for NAT to download the containers
+resource "aws_eip" "nat_eip" {
+  domain = "vpc"
+}
+
+resource "aws_nat_gateway" "nat_gateway" {
+  allocation_id = aws_eip.nat_eip.id
+  subnet_id     = aws_subnet.public_subnet_dashboard.id
+
+  tags = {
+    Name = "nat-gateway"
+  }
+}
+
 # Route traffic from the gateway to the public subnet
 resource "aws_route_table" "public_route_table" {
   vpc_id = aws_vpc.vpc-production.id
+}
+
+resource "aws_route_table" "private_route_table_data_stream" {
+  vpc_id = aws_vpc.vpc-production.id
+
+  route {
+    cidr_block     = "0.0.0.0/0"
+    nat_gateway_id = aws_nat_gateway.nat_gateway.id
+  }
+
+  tags = {
+    Name = "private-route-table-data-stream"
+  }
+}
+
+resource "aws_route_table_association" "private_route_table_association_data_stream" {
+  subnet_id      = aws_subnet.private_subnet_data_stream.id
+  route_table_id = aws_route_table.private_route_table_data_stream.id
+}
+
+resource "aws_route_table" "private_route_table_anomaly_detection" {
+  vpc_id = aws_vpc.vpc-production.id
+
+  route {
+    cidr_block     = "0.0.0.0/0"
+    nat_gateway_id = aws_nat_gateway.nat_gateway.id
+  }
+
+  tags = {
+    Name = "private-route-table-anomaly-detection"
+  }
+}
+
+resource "aws_route_table_association" "private_route_table_association_anomaly_detection" {
+  subnet_id      = aws_subnet.private_subnet_anomaly_detection.id
+  route_table_id = aws_route_table.private_route_table_anomaly_detection.id
 }
 
 # Route for internet access
@@ -68,6 +120,8 @@ resource "aws_route_table_association" "public_subnet_association" {
   subnet_id      = aws_subnet.public_subnet_dashboard.id
   route_table_id = aws_route_table.public_route_table.id
 }
+
+
 
 # Role definitions
 resource "aws_iam_role" "ecs_task_execution_role" {
@@ -145,14 +199,16 @@ resource "aws_ecs_task_definition" "stream_data_task" {
   container_definitions = jsonencode([
     {
       name  = "stream-data-container"
-      image = "stream_data_image:latest"
+      image = "corgicapycode/stream_data_image:latest"
       #cpu       = 256      
       #memory    = 512
       essential = true
       environment = [
         {
           name  = "DETECTION_SERVICE_URL"
-          value = "http://production-anomaly_detection-1:5001/anomaly_detection"
+          #value = "http://production-anomaly_detection-1:5001/anomaly_detection"
+          value = "http://anomaly-detection-container:5001/anomaly_detection"
+
         }
       ]
       portMappings = [
@@ -182,14 +238,15 @@ resource "aws_ecs_task_definition" "anomaly_detection_task" {
   container_definitions = jsonencode([
     {
       name  = "anomaly-detection-container"
-      image = "anomaly_detection_image:latest"
+      image = "corgicapycode/anomaly_detection_image:latest"
       #cpu       = 512      
       #memory    = 1024
       essential = true
       environment = [
         {
           name  = "DASHBOARD_SERVICE_URL"
-          value = "http://production-dashboard-1:5002/receive_data"
+          #value = "http://production-dashboard-1:5002/receive_data"
+          value = "http://dashboard-container:5002/receive_data"
         }
       ]
       portMappings = [
@@ -219,7 +276,7 @@ resource "aws_ecs_task_definition" "dashboard_task" {
   container_definitions = jsonencode([
     {
       name  = "dashboard-container"
-      image = "dashboard_image:latest"
+      image = "corgicapycode/dashboard_image:latest"
       #cpu       = 256      
       #memory    = 512
       essential = true
@@ -300,6 +357,13 @@ resource "aws_security_group" "sg" {
   ingress {
     from_port   = 5001
     to_port     = 5001
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    from_port   = 5002
+    to_port     = 5002
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
