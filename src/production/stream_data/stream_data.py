@@ -7,13 +7,15 @@ import time
 
 from datetime import datetime
 from flask import Flask, jsonify, request
-from threading import Thread
+from threading import Thread, Timer
 
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 DETECTION_SERVICE_URL = os.getenv("DETECTION_SERVICE_URL", "http://anomaly_detection_container:5001/anomaly_detection")
+
+stop_flag = False
 
 MAX_RETRIES = 5
 INITIAL_WAIT_TIME = 2
@@ -120,14 +122,13 @@ features_config = {
     },
 }
 
-
 stream_app = Flask(__name__)
 
 #@stream_app.route("/generate", methods=["GET"])
 def generate_and_detect():
-    
+    global stop_flag
     retries = 0
-    while retries < MAX_RETRIES: 
+    while retries < MAX_RETRIES and not stop_flag:
         try:
             data_point = stream_data(features_config)
             response = requests.post(DETECTION_SERVICE_URL, json=data_point)
@@ -158,12 +159,20 @@ def generate_and_detect():
               
         time.sleep(1.0)
 
-
-@stream_app.route("/start_stream", methods=["GET"])
 def start_stream():
     thread = Thread(target=generate_and_detect)
     thread.start()
-    return jsonify({"message": "Stream started. Generates every 0.2sec one set of values."}), 200
+    
+    timer = Timer(120, stop_stream)
+    timer.start()
+    
+    return jsonify({"message": "Stream started. Generates every second one set of values."}), 200
+
+def stop_stream():
+    global stop_flag
+    stop_flag = True
+    logger.info("Stream stopped after 2min")
 
 if __name__ == "__main__":
+    start_stream()
     stream_app.run(host="0.0.0.0", port=5000)
