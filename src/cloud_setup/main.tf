@@ -1,4 +1,5 @@
 
+### Virtual Private Networking
 # VPC
 resource "aws_vpc" "vpc-production" {
   cidr_block           = "10.0.0.0/16"
@@ -43,6 +44,8 @@ resource "aws_subnet" "public_subnet_dashboard" {
   }
 }
 
+
+### IGW & NAT for communication
 # Internet gateway for the dashboard
 resource "aws_internet_gateway" "internet_gateway" {
   vpc_id = aws_vpc.vpc-production.id
@@ -50,8 +53,6 @@ resource "aws_internet_gateway" "internet_gateway" {
     Name = "internet-gateway"
   }
 }
-
-
 
 #Elastic IP for NAT to download the containers
 resource "aws_eip" "nat_eip" {
@@ -67,7 +68,8 @@ resource "aws_nat_gateway" "nat_gateway" {
   }
 }
 
-# Route traffic from the gateway to the public subnet
+### Private and Public Route Tables
+
 resource "aws_route_table" "public_route_table" {
   vpc_id = aws_vpc.vpc-production.id
 }
@@ -115,14 +117,13 @@ resource "aws_route" "internet_access" {
   gateway_id             = aws_internet_gateway.internet_gateway.id
 }
 
-# Associate public subnet with the public route table
 resource "aws_route_table_association" "public_subnet_association" {
   subnet_id      = aws_subnet.public_subnet_dashboard.id
   route_table_id = aws_route_table.public_route_table.id
 }
 
 
-
+### Roles
 # Role definitions
 resource "aws_iam_role" "ecs_task_execution_role" {
   name = "ecs-task-execution-role"
@@ -165,6 +166,8 @@ resource "aws_iam_role_policy_attachment" "ecs_execution_role_policy" {
   role       = aws_iam_role.ecs_task_execution_role.name
 }
 
+
+### ECS & Task Definitions
 # ECS Cluster
 resource "aws_ecs_cluster" "ecs_cluster" {
   name = "production-cluster"
@@ -206,9 +209,7 @@ resource "aws_ecs_task_definition" "stream_data_task" {
       environment = [
         {
           name  = "DETECTION_SERVICE_URL"
-          #value = "http://production-anomaly_detection-1:5001/anomaly_detection"
-          value = "http://anomaly-detection-container:5001/anomaly_detection"
-
+          value = "http://anomaly-detection.ecs.local:5001/anomaly_detection"
         }
       ]
       portMappings = [
@@ -245,8 +246,7 @@ resource "aws_ecs_task_definition" "anomaly_detection_task" {
       environment = [
         {
           name  = "DASHBOARD_SERVICE_URL"
-          #value = "http://production-dashboard-1:5002/receive_data"
-          value = "http://dashboard-container:5002/receive_data"
+          value = "http://dashboard.ecs.local:5002/receive_data"
         }
       ]
       portMappings = [
@@ -302,18 +302,30 @@ resource "aws_ecs_task_definition" "dashboard_task" {
 }
 
 # ECS Services
+resource "aws_service_discovery_private_dns_namespace" "ecs_namespace" {
+  name        = "ecs.local"
+  vpc         = aws_vpc.vpc-production.id
+  description = "Private namespace for ECS services"
+}
+
 resource "aws_ecs_service" "stream_data_service" {
   name            = "stream-data-service"
   cluster         = aws_ecs_cluster.ecs_cluster.id
   task_definition = aws_ecs_task_definition.stream_data_task.arn
   desired_count   = 1
   launch_type     = "FARGATE"
+
   network_configuration {
     subnets          = [aws_subnet.private_subnet_data_stream.id]
     security_groups  = [aws_security_group.sg.id]
     assign_public_ip = false
   }
+
+  service_registries {
+    registry_arn = aws_service_discovery_service.stream_data_service_discovery.arn
+  }
 }
+
 
 resource "aws_ecs_service" "anomaly_detection_service" {
   name            = "anomaly-detection-service"
@@ -321,12 +333,18 @@ resource "aws_ecs_service" "anomaly_detection_service" {
   task_definition = aws_ecs_task_definition.anomaly_detection_task.arn
   desired_count   = 1
   launch_type     = "FARGATE"
+
   network_configuration {
     subnets          = [aws_subnet.private_subnet_anomaly_detection.id]
     security_groups  = [aws_security_group.sg.id]
     assign_public_ip = false
   }
+
+  service_registries {
+    registry_arn = aws_service_discovery_service.anomaly_detection_service_discovery.arn
+  }
 }
+
 
 resource "aws_ecs_service" "dashboard_service" {
   name            = "dashboard-service"
@@ -334,40 +352,60 @@ resource "aws_ecs_service" "dashboard_service" {
   task_definition = aws_ecs_task_definition.dashboard_task.arn
   desired_count   = 1
   launch_type     = "FARGATE"
+
   network_configuration {
     subnets          = [aws_subnet.public_subnet_dashboard.id]
     security_groups  = [aws_security_group.sg.id]
     assign_public_ip = true
   }
+
+  service_registries {
+    registry_arn = aws_service_discovery_service.dashboard_service_discovery.arn
+  }
+}
+
+### Discovery Services
+resource "aws_service_discovery_service" "stream_data_service_discovery" {
+  name = "stream-data"
+  dns_config {
+    namespace_id = aws_service_discovery_private_dns_namespace.ecs_namespace.id
+    dns_records {
+      ttl  = 10
+      type = "A"
+    }
+  }
+}
+
+resource "aws_service_discovery_service" "anomaly_detection_service_discovery" {
+  name = "anomaly-detection"
+  dns_config {
+    namespace_id = aws_service_discovery_private_dns_namespace.ecs_namespace.id
+    dns_records {
+      ttl  = 10
+      type = "A"
+    }
+  }
+}
+
+resource "aws_service_discovery_service" "dashboard_service_discovery" {
+  name = "dashboard"
+  dns_config {
+    namespace_id = aws_service_discovery_private_dns_namespace.ecs_namespace.id
+    dns_records {
+      ttl  = 10
+      type = "A"
+    }
+  }
 }
 
 # Security group
+
 resource "aws_security_group" "sg" {
   name        = "ecs-sg"
-  description = "Allow traffic between services"
+  description = "Allow traffic between ECS services"
   vpc_id      = aws_vpc.vpc-production.id
 
-  ingress {
-    from_port   = 5000
-    to_port     = 5000
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  ingress {
-    from_port   = 5001
-    to_port     = 5001
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  ingress {
-    from_port   = 5002
-    to_port     = 5002
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
+  # Allow all outbound traffic
   egress {
     from_port   = 0
     to_port     = 0
@@ -375,3 +413,25 @@ resource "aws_security_group" "sg" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 }
+
+# Allow traffic on ports 5000-5002 from the same security group
+resource "aws_security_group_rule" "self_ingress" {
+  type                     = "ingress"
+  from_port                = 5000
+  to_port                  = 5002
+  protocol                 = "tcp"
+  security_group_id        = aws_security_group.sg.id
+  source_security_group_id = aws_security_group.sg.id
+}
+
+# Allow traffic on ports 5000-5002 from anywhere (if needed)
+resource "aws_security_group_rule" "cidr_ingress" {
+  type              = "ingress"
+  from_port         = 5000
+  to_port           = 5002
+  protocol          = "tcp"
+  security_group_id = aws_security_group.sg.id
+  cidr_blocks       = ["0.0.0.0/0"]
+}
+
+

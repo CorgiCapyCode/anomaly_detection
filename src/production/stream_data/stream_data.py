@@ -163,7 +163,7 @@ def start_stream():
     thread = Thread(target=generate_and_detect)
     thread.start()
     
-    timer = Timer(120, stop_stream)
+    timer = Timer(600, stop_stream)
     timer.start()
     
     return jsonify({"message": "Stream started. Generates every second one set of values."}), 200
@@ -171,7 +171,7 @@ def start_stream():
 def stop_stream():
     global stop_flag
     stop_flag = True
-    logger.info("Stream stopped after 2min")
+    logger.info("Stream stopped after 10min")
 
 if __name__ == "__main__":
     start_stream()

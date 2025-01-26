@@ -1,0 +1,10 @@
+### Terraform related files.
+terraform.tfstate
+terraform.tfstate.backup
+.terraform.lock.hcl
+.terraform/
+crash.log
+*.tfstate.backup
+*.tfstate.*
+*.auto.tfvars
+*.auto.tfvars.json
