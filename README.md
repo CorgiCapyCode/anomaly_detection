@@ -62,12 +62,82 @@ pip install -r requirements.tx
 
 # Architecture Overview
 
+![Architecture](images\simplified_project_architecture.png)
 
+The system architecture consists of three main components: Data Stream, Analysis and Monitoring. Each component is developed as an independent application to ensure modularity and flexibility.  
+1. Data Stream: This application simulates the data generation and any necessary preprocessing. It is designed to be replaceable by real-world production data, without influencing the other components.
+2. Analysis: The anomaly detection algorithm, including the pre-trained weights are implemented in this application.
+3. Monitoring: The last application provides a dashboard to track the detection results and the performance of the model. In a real-world application it can be enriched with other production relevant data or be replaced by already existing dashboards.
+
+The development focuses on the independence of the components in order to be able to exchange them when necessary and minimizing the need for change in the other components.
+
+The cloud architecture for this project is described in [Cloud Deployment](#cloud-deployment).
 
 # Data
 
+## General assumptions about the data
+The data used for training and streaming is not based on real-world data, but created synthetical based on underlying distributions.  
+Furthermore the data used for the training is not annotated and thus the anomaly detection requires an unsupervised model, described in [Machine Learning Model](#machine-learning-model).  
+All datasets (training, testing and streaming) are based on the same underlying distributions, which are defined as follows:  
+
+Temperature:  
+- Distribution: normal (mean: 22, std: 2)
+- Anomaly injection: uniform (range: 15-30, ratio: 0.01)
+
+Humidity:
+- Distribution: normal (mean: 50, std: 5)
+- Anomaly injection: uniform (range: 30-70, ratio: 0.01)
+
+Noise Level:
+- Distribution: normal (mean: 80, std: 5)
+- Anomaly injection: uniform (range: 60-100, ratio: 0.02)
+
+The features are defined in [features_config.json](src\production\stream_data\features_config.json).  
+The supported distributions are described [here](CONFIGURE_FEATURES.md).  
+
+The training and and data stream should be build in a manner that more "sensors" can be added to the features configuration. After running the training, testing etc. the system should still be working, without further adjustments.  
+
+## Data Generation for Training and Testing
+The data for training and testing is created by running the [data_generator.py](src\data_generation\data_generator.py).  
+It uses the configuration file for the features as described above and generates three datasets - for training, testing and validation.  
+The synthetical data is stored as a CSV-file [here](src\data\synthetic_data).  
+In this current version 50,000 rows are generated for training. The amount can be adjusted within the data generator file.  
+
+The data contains a timestamp, a value for each simulated sensor (temperature, humidity and noise level).  
+
+To review the generated data a second script is added, which can be used to visualize the features in a diagram.  
+
+## Data Stream for Production
+The data stream generates data and sends it to the detection service, i.e. the anomaly detection algorithm using flask.  
+This application simulates already preprocessed sensor data (in case the sensor data needs to be encoded etc.) and sends it as a package, including all values needed for the anomaly detection algorithm and a timestamp.  
+
+**Restrictions**:  
+The data stream currently uses a "sleep" time of one second and stops automatically after 10min.  
+The reason is that the data stream is deployed on AWS and thus causes costs. In order to limit this these restrictions are built in.  
+[data_stream.py](src\production\stream_data\stream_data.py) contains instructions how to adjust or remove the limitations.  
 
 # Machine Learning Model
+## Model Selection
+Based on the data generated the models are restricted to unsupervised models. 
+For this project two different models are trained, KMeans Clustering and One Class Support Vector Machine.  
+
+- K-Means: Is generally a simple model and easy to understand, making it also explainable.
+- One Class SVM: Can detect more complex anomaly patterns.  
+
+Since the main focus of this project is on the development of the whole system and not of a elaborate ML model only these two models are considered.  
+
+Information about the models:  
+[Medium](https://medium.com/simform-engineering/anomaly-detection-with-unsupervised-machine-learning-3bcf4c431aff)  
+[Builtin](https://builtin.com/machine-learning/anomaly-detection-algorithms)  
+
+## Model Training
+
+
+## Model Testing
+
+
+## Model Deployment
+
 
 # Dashboard and Monitoring
 

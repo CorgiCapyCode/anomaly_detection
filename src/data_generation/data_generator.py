@@ -1,17 +1,16 @@
 """
 Generates a dataset for training unsupervised anomaly detection algorithms.
 Default sample size: 50,000
-Default timestamp intervall: 5sec
+Default timestamp interval: 5sec
 Requires min. 1 feature as input, but can have multiple.
 Features are added/modified/deleted in features_config.
 See description below for features.
 """
-
+import json
 import numpy as np
 import pandas as pd
 
 from datetime import datetime, timedelta
-
 
 def generate_data_per_feature(distribution: str, params, sample_size: int):
     """
@@ -89,79 +88,18 @@ def generate_dataset(sample_size: int =50000, timestamp_interval: int =5, featur
     
     return df
            
-# Config of features
-"""  
-    Feature configuration as input for synthetical data.
-    ----
-    Keys:
-    distribution: Specifies the distribution for each feature.
-        - normal: Generates data based on a normal (Gaussian) distribution.
-        - uniform: Generates data based on a uniform distribution.
-        - exponential: Generates data based on an exponential distribution.
-        - poisson: Generates data based on a Poisson distribution.
-        - lognormal: Generates data based on a log-normal distribution.
-        - gamma: Generates data based on a Gamma distribution.
-        - beta: Generates data based on a Beta distribution.
-        - weibull: Generates data based on a Weibull distribution.
-        - triangular: Generates data based on a triangular distribution.
-        - chisquare: Generates data based on a Chi-Squared distribution.
+def load_features_config(file_path):
+    """
+    Load the features configuration from a JSON file.
+    
+    Args:
+        file_path (str): Path to the JSON file containing the feature configuration.
         
-    params: Specifies the parameters defining the distribution.
-        - for normal: {"mean": float, "std": float} -> mean and standard deviation.
-        - for uniform: {"low": float, "high": float} -> lower and upper bounds.
-        - for exponential: {"scale": float} -> scale parameter (inverse of rate).
-        - for poisson: {"lam": float} -> mean number of events per interval.
-        - for lognormal: {"mean": float, "sigma": float} -> mean and standard deviation of the natural logarithm.
-        - for gamma: {"shape": float, "scale": float} -> shape and scale parameters.
-        - for beta: {"a": float, "b": float} -> alpha and beta parameters.
-        - for weibull: {"a": float} -> shape parameter.
-        - for triangular: {"left": float, "mode": float, "right": float} -> minimum, most likely, and maximum values.
-        - for chisquare: {"df": float} -> degrees of freedom.
-    
-    drift: float -> Specifies the drift of the feature. Set to 0 for no drift.
-    
-    anomaly_range: tuple -> Range where the anomalies are distributed.
-    
-    anomaly_ratio: float -> Ratio of anomalies. Consider that the anomalies are distributed uniform.
-    A ceratin number of anomalies will always fall in the accepted area.  
-"""
-
-features_config = {
-    "temperature": {
-        "name": "temperature",
-        "distribution": "normal",
-        "params": {
-            "mean": 22,
-            "std": 2,
-        },
-        "drift": 0,
-        "anomaly_range": (15, 30),
-        "anomaly_ratio": 0.01,
-    },
-    "humidity": {
-        "name": "humidity",
-        "distribution": "normal",
-        "params": {
-            "mean": 50,
-            "std": 5,
-        },
-        "drift": 0,
-        "anomaly_range": (30, 70),
-        "anomaly_ratio": 0.01,
-    },
-    "noise_level": {
-        "name": "noise_level",
-        "distribution": "normal",
-        "params": {
-            "mean": 80,
-            "std": 5,
-        },
-        "drift": 0,
-        "anomaly_range": (60, 100),
-        "anomaly_ratio": 0.02,
-    },
-}
-
+    Returns:
+        dict: Features configuration dictionary.
+    """
+    with open(file_path, "r") as f:
+        return json.load(f)
 
 if __name__ == "__main__":
     # Default setting is 5
@@ -173,6 +111,8 @@ if __name__ == "__main__":
         (12500, "src/data/synthetic_data/synthetic_test_data.csv"),
         (25000, "src/data/synthetic_data/synthetic_validation_data.csv")
     ]
+
+    features_config = load_features_config("src/production/stream_data/features_config.json")
     
     for sample_size, output_file in datasets:
         df = generate_dataset(sample_size=sample_size, timestamp_interval=timestamp_interval, features_config=features_config)

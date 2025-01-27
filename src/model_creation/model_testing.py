@@ -97,7 +97,7 @@ def ocsvm_testing(test_data: pd.DataFrame, model):
     
     return results
 
-def metrics_calcualtor(df: pd.DataFrame):
+def metrics_calculator(df: pd.DataFrame):
     """
     Calculates the standard metrics to compare the model resutls.
     
@@ -203,7 +203,7 @@ if __name__ == "__main__":
     kmeans_results.to_csv("src/data/test_results/test_results_kmeans.csv", index=False)
     
     kmeans_visualization(df=df_kmeans, kmeans_model=kmeans_model, path=image_path)
-    kmeans_results = metrics_calcualtor(df=df_kmeans)
+    kmeans_results = metrics_calculator(df=df_kmeans)
     print("KMeans - Results:")
     print(kmeans_results)    
 
@@ -217,7 +217,7 @@ if __name__ == "__main__":
     ocsvm_results = ocsvm_testing(test_data=test_data, model=ocsvm_model)
     ocsvm_results.to_csv("src/data/test_results/test_results_ocsvm.csv", index=False)
     
-    ocsvm_results = metrics_calcualtor(df=df_ocsvm)
+    ocsvm_results = metrics_calculator(df=df_ocsvm)
     print("OCSVM-Results:")
     print(ocsvm_results)     
     

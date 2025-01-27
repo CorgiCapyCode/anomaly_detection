@@ -4,10 +4,6 @@ The trained models are:
 
 KMeans Clustering
 One Class Support Vector Machines
-
-Information about the models:
-https://medium.com/simform-engineering/anomaly-detection-with-unsupervised-machine-learning-3bcf4c431aff
-https://builtin.com/machine-learning/anomaly-detection-algorithms
 """
 
 import joblib

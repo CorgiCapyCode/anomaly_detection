@@ -1,0 +1,35 @@
+{
+    "temperature": {
+        "name": "temperature",
+        "distribution": "normal",
+        "params": {
+            "mean": 22,
+            "std": 2
+        },
+        "drift": 0,
+        "anomaly_range": [15, 30],
+        "anomaly_ratio": 0.01
+    },
+    "humidity": {
+        "name": "humidity",
+        "distribution": "normal",
+        "params": {
+            "mean": 50,
+            "std": 5
+        },
+        "drift": 0,
+        "anomaly_range": [30, 70],
+        "anomaly_ratio": 0.01
+    },
+    "noise_level": {
+        "name": "noise_level",
+        "distribution": "normal",
+        "params": {
+            "mean": 80,
+            "std": 5
+        },
+        "drift": 0,
+        "anomaly_range": [60, 100],
+        "anomaly_ratio": 0.02
+    }
+}
