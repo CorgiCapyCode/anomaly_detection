@@ -97,12 +97,12 @@ def ocsvm_testing(test_data: pd.DataFrame, model):
     
     return results
 
-def metrics_calculator(df: pd.DataFrame):
+def base_metrics(df: pd.DataFrame):
     """
-    Calculates the standard metrics to compare the model resutls.
+    Calculates the standard metrics to compare the model results.
     
     Args:
-        df (pd.DataFrame): Test results with the anoamly information.
+        df (pd.DataFrame): Test results with the anomaly information.
         
     Return:
         metrics (dict): Containing the test results
@@ -123,9 +123,44 @@ def metrics_calculator(df: pd.DataFrame):
     
     return metrics
 
+  
+def result_comparison(kmeans_results: pd.DataFrame, ocsvm_results: pd.DataFrame):
+    """
+    Compares the results of Kmeans and OCSVM.
+    Args:
+        kmeans_results (pd.DataFrame): The annotated data from testing the KMeans-model.
+        ocsvm_results (pd.DataFrame): The annotated data from testing the OCSVM-Model.    
+    """
+    # Merge the results on the timestamp in order to compare the predictions.
+    merged_results = pd.merge(
+        kmeans_results[['timestamp', 'anomaly']],
+        ocsvm_results[['timestamp', 'anomaly']],
+        on='timestamp',
+        suffixes=('_kmeans', '_ocsvm')
+    )
+        
+    merged_results["match"] = merged_results["anomaly_kmeans"] == merged_results["anomaly_ocsvm"]
+
+    kmeans_anomalies = merged_results["anomaly_kmeans"].sum()
+    ocsvm_anomalies = merged_results["anomaly_ocsvm"].sum()    
+    only_kmeans_anomaly = ((merged_results["anomaly_kmeans"] == 1) & (merged_results["anomaly_ocsvm"] == 0)).sum()
+    only_ocsvm_anomaly = ((merged_results["anomaly_kmeans"] == 0) & (merged_results["anomaly_ocsvm"] == 1)).sum()
+    both_anomaly = ((merged_results["anomaly_kmeans"] == 1) & (merged_results["anomaly_ocsvm"] == 1)).sum()
+
+
+    intersection_over_union = both_anomaly / (kmeans_anomalies+ocsvm_anomalies-both_anomaly)
+    
+    merged_results.to_csv("src/data/test_results/merged_lists.csv")
+    print("Comparison Results:")
+    print(f"Total anomalies (K-Means & OCSVM): {kmeans_anomalies}       {ocsvm_anomalies}")
+    print(f"Only one model (K-Means & OCSVM):  {only_kmeans_anomaly}        {only_ocsvm_anomaly}")
+    print(f"Anomalies in both: {both_anomaly}")
+    print(f"Intersection over Union (Jaccard-Index): {intersection_over_union}")
+
 def kmeans_visualization(df: pd.DataFrame, kmeans_model, path: str, num_points: int =100):
     """
-    Creates a 3D visualization of the kmeans test results.
+    Creates a 3D visualization of the kmeans test results based on the standard sensor input.
+    Requires temperature, humidity and noise level as input.
     Args:
         df (pd.DataFrame): The test results as basis for the 3D visualization.
         kmeans_model: The model to visualize the centroids.
@@ -163,25 +198,6 @@ def kmeans_visualization(df: pd.DataFrame, kmeans_model, path: str, num_points: 
     save_path = f"{path}/kmeans_anomalies.png"
     plt.savefig(save_path, format="png", dpi=300)
     plt.close(fig_1)
-    
-def compare_results(kmeans_results: pd.DataFrame, ocsvm_results: pd.DataFrame):
-    """
-    Compares the results of Kmeans and OCSVM.
-    Args:
-        kmeans_results (pd.DataFrame): The annotated data from testing the KMeans-model.
-        ocsvm_results (pd.DataFrame): The annotated data from testing the OCSVM-Model.    
-    """
-    merged_results = pd.merge(
-        kmeans_results[['timestamp', 'anomaly']],
-        ocsvm_results[['timestamp', 'anomaly']],
-        on='timestamp',
-        suffixes=('_kmeans', '_ocsvm')
-    )
-    
-    merged_results["match"] = merged_results["anomaly_kmeans"] == merged_results["anomaly_ocsvm"]
-    
-    merged_results.to_csv("src/data/test_results/merged_lists.csv")
-
 
 
 if __name__ == "__main__":
@@ -202,8 +218,9 @@ if __name__ == "__main__":
     kmeans_results = kmeans_testing(test_data=test_data, model=kmeans_model, threshold=threshold)
     kmeans_results.to_csv("src/data/test_results/test_results_kmeans.csv", index=False)
     
+    # Only to be used for the standard set of sensors - temperature, humidity and noise level.
     kmeans_visualization(df=df_kmeans, kmeans_model=kmeans_model, path=image_path)
-    kmeans_results = metrics_calculator(df=df_kmeans)
+    kmeans_results = base_metrics(df=df_kmeans)
     print("KMeans - Results:")
     print(kmeans_results)    
 
@@ -217,10 +234,10 @@ if __name__ == "__main__":
     ocsvm_results = ocsvm_testing(test_data=test_data, model=ocsvm_model)
     ocsvm_results.to_csv("src/data/test_results/test_results_ocsvm.csv", index=False)
     
-    ocsvm_results = metrics_calculator(df=df_ocsvm)
+    ocsvm_results = base_metrics(df=df_ocsvm)
     print("OCSVM-Results:")
     print(ocsvm_results)     
     
     # Create file for comparing.
-    compare_results(kmeans_results=df_kmeans, ocsvm_results=df_ocsvm)    
+    result_comparison(kmeans_results=df_kmeans, ocsvm_results=df_ocsvm)    
     print("Model testing completed")

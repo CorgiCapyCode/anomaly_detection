@@ -108,13 +108,14 @@ The data contains a timestamp, a value for each simulated sensor (temperature, h
 To review the generated data a second script is added, which can be used to visualize the features in a diagram.  
 
 ## Data Stream for Production
-The data stream generates data and sends it to the detection service, i.e. the anomaly detection algorithm using flask.  
-This application simulates already preprocessed sensor data (in case the sensor data needs to be encoded etc.) and sends it as a package, including all values needed for the anomaly detection algorithm and a timestamp.  
+The data stream generates data and sends it to the detection service, i.e. the anomaly detection algorithm.  
+The data includes all necessary values for the detection service including a timestamp.
 
 **Restrictions**:  
-The data stream currently uses a "sleep" time of one second and stops automatically after 10min.  
-The reason is that the data stream is deployed on AWS and thus causes costs. In order to limit this these restrictions are built in.  
-[data_stream.py](src\production\stream_data\stream_data.py) contains instructions how to adjust or remove the limitations.  
+The data stream generates data approx. once a second (sleep-timer set to 1sec) and stops automatically after 10min.  
+This ensures that the application stops during testing (especially for the cloud deployment).
+Set the streaming duration to zero to start infinite streaming mode.  
+The application can be restarted.  
 
 # Machine Learning Model
 ## Model Selection
@@ -131,14 +132,25 @@ Information about the models:
 [Builtin](https://builtin.com/machine-learning/anomaly-detection-algorithms)  
 
 ## Model Training
-
+The model training is based on the synthetical data. The training includes automatically all numerical features.  
+New added numerical features in the feature configuration are considered without any need of modification.  
+The model weights are saved to the anomaly detection algorithm used for the model deployment.
+Since two models, K-Means and One Class SVM are trained, to different model parameters are saved to the model to be deployed.  
+When changing the features configuration, especially the anomaly ratios, the hyperparameters for the One Class SVM model must be adjusted!  
 
 ## Model Testing
-
+The two models built in the training are compared with each other.  
+For K-Means a threshold distance of 13.6 for the border of anomalies appeared to be the best.  
+The test results show that both models predict almost the same data as anomalies, with a Jaccard-Index of 0.926.  
+In fact the results show that the One Class SVM classified all data classified by the K-Means model plus additional 35.  
+The anomaly ratios are in between 3.5% (K-Means) to 3.8% (One Class SVM), which is within the expected range of anomalies with the current feature configuration.  
+The test results are stored [here](src\data\test_results).  
 
 ## Model Deployment
+For the implementation the One Class SVM model was chosen.  
 
 
 # Dashboard and Monitoring
+
 
 # Cloud Deployment

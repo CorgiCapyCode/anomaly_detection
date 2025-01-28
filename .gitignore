@@ -8,3 +8,7 @@ crash.log
 *.tfstate.*
 *.auto.tfvars
 *.auto.tfvars.json
+
+
+### VS Code Settings
+.vscode
