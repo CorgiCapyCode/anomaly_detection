@@ -209,7 +209,7 @@ resource "aws_ecs_task_definition" "stream_data_task" {
       environment = [
         {
           name  = "DETECTION_SERVICE_URL"
-          value = "http://anomaly-detection.ecs.local:5001/anomaly_detection"
+          value = "http://anomaly-detection.ecs.local:5001/detection_service"
         }
       ]
       portMappings = [
@@ -284,6 +284,10 @@ resource "aws_ecs_task_definition" "dashboard_task" {
         {
           name  = "FLASK_ENV"
           value = "production"
+        },
+        {
+          name  = "DETECTION_SERVICE_URL"
+          value = "http://anomaly-detection.ecs.local:5001/health_check"
         }
       ]
       portMappings = [
