@@ -164,7 +164,9 @@ The anomaly detection is structured as follows:
 - uses the data from the temporary dataset to evaluate the system health
 
 # Dashboard and Monitoring
-
-
+The dashboard consists of a simple website displaying the 10 latest results from the analysis and the 10 latest anomalies.  
+It uses the same buffer method as used for the model deployment to ensure all data is displayed.  
+Furthermore it offers a button to trigger the health check.  
+This layout is limited to its minimum.  
 
 # Cloud Deployment

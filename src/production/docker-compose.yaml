@@ -23,6 +23,7 @@ services:
       - "5002:5002"
     environment:
       - FLASK_ENV=production
+      - DETECTION_SERVICE_URL=http://production-anomaly_detection-1:5001/health_check
     networks:
       - anomaly_network
 

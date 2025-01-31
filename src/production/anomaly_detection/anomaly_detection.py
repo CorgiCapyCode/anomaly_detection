@@ -139,6 +139,7 @@ def send_data_to_dashboard():
             except Exception as e:
                 logger.error(f"Error sending data to the dashboard: {e}")
         else:
+            logger.info("No queued data.")
             time.sleep(1.0)
 
 
