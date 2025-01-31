@@ -147,10 +147,24 @@ The anomaly ratios are in between 3.5% (K-Means) to 3.8% (One Class SVM), which 
 The test results are stored [here](src\data\test_results).  
 
 ## Model Deployment
-For the implementation the One Class SVM model was chosen.  
-
+The One Class SVM is used for anomaly detection.  
+The anomaly detection is structured as follows:  
+1. Input:
+- via an API (detection_service)
+- the data is forwarded to a queue which serves as buffer
+2. Anomaly Detection:
+- the OCSVM model analyzes the incoming data
+- the data is forwarded to a queue which serves as buffer
+- the data is attached to a temporary (not persistent) dataset for health checks
+- teh dataset is limited to 1000 entries
+3. Output:
+- the data from the output buffer is forwarded to a dashboard
+4. Health Check:
+- via an API (health_check)
+- uses the data from the temporary dataset to evaluate the system health
 
 # Dashboard and Monitoring
+
 
 
 # Cloud Deployment

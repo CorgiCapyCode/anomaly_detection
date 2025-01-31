@@ -1,6 +1,6 @@
 services:
   anomaly_detection:
-    image: anomaly_detection_image:latest
+    image: corgicapycode/anomaly_detection_image:latest
     ports:
       - "5001:5001"
     environment:
@@ -9,16 +9,16 @@ services:
       - anomaly_network
 
   stream_data:
-    image: stream_data_image:latest
+    image: corgicapycode/stream_data_image:latest
     ports:
       - "5000:5000"
     environment:
-      - DETECTION_SERVICE_URL=http://production-anomaly_detection-1:5001/anomaly_detection
+      - DETECTION_SERVICE_URL=http://production-anomaly_detection-1:5001/detection_service
     networks:
       - anomaly_network
 
   dashboard:
-    image: dashboard_image:latest
+    image: corgicapycode/dashboard_image:latest
     ports:
       - "5002:5002"
     environment:

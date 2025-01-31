@@ -20,13 +20,13 @@ logger = logging.getLogger(__name__)
 # Use this to build a container.
 FEATURES_CONFIG_PATH = "features_config.json"
 
-DETECTION_SERVICE_URL = os.getenv("DETECTION_SERVICE_URL", "http://anomaly_detection_container:5001/anomaly_detection")
+DETECTION_SERVICE_URL = os.getenv("DETECTION_SERVICE_URL", "http://anomaly_detection_container:5001/detection_service")
 MAX_RETRIES = 5
 INITIAL_WAIT_TIME = 2
 WAIT_TIME_MULTIPLIER = 2
 
 # Set duration = 0 for infinite mode
-duration = 600 #seconds
+duration = 600.0 #seconds
 # Time between the data is generated.
 interval = 1 #seconds
 
@@ -106,17 +106,17 @@ def stream_data():
         endtime =float("inf")
     else:
         endtime = time.time() + duration
-    
     retries = 0
      
     while True:
         
         if stop_streaming.is_set():
-            logger.info("Streaming stopped")
+            logger.info("Streaming stopped - streaming stop is set")
             break
         
-        if time.time() < endtime:
-            logger.info("Streaming stopped")
+        if time.time() > endtime:
+            logger.info("Streaming stopped - endtime reached")
+            logger.info(f"Stream end time set to: {endtime} (current time: {time.time()})")
             break
         
         sensor_data = generate_data(features_config=features_config)
@@ -156,7 +156,9 @@ def start_streaming():
     if not streaming_status:
         streaming_status = True
         stop_streaming.clear()
+        logger.info("Starting streaming")
         thread = Thread(target=stream_data, daemon=True)
+        logger.info("Streaming started")
         thread.start()
     else:
         logger.info("Streaming is already active.")
