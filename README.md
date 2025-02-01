@@ -30,17 +30,13 @@ This repository contains all files and scripts to create a simple ML model to de
      &nbsp;&nbsp;&nbsp;&nbsp;*Integration of the pre-trained model in a production environment.*
 
 6. [**Dashboard and Monitoring**](#dashboard-and-monitoring)  
-   - 6.1 **Monitoring the Production Environment**  
-     &nbsp;&nbsp;&nbsp;&nbsp;*Layout and description of the dashboard for monitoring.*  
-   - 6.2 **Monitoring the Model’s Performance**  
-     &nbsp;&nbsp;&nbsp;&nbsp;*Monitoring the model performance during production.*
+&nbsp;&nbsp;&nbsp;&nbsp;*High-level description of the dashboard structure.*  
 
 7. [**Cloud Deployment**](#cloud-deployment)  
-   - 7.1 **Cloud Architecture**  
-     &nbsp;&nbsp;&nbsp;&nbsp;*Diagram and explanation of the AWS-cloud architecture.*  
-   - 7.2 **Setting Up the Cloud Environment**  
-     &nbsp;&nbsp;&nbsp;&nbsp;*Description of the deployment process.*
+&nbsp;&nbsp;&nbsp;&nbsp;*Diagram and explanation of the AWS-cloud architecture.*  
 
+8. [**How to run the system**](#how-to-run-the-system)  
+&nbsp;&nbsp;&nbsp;&nbsp;*Step by step guide to use this repo.*  
 ---
 
 # **Background Information**
@@ -170,3 +166,73 @@ Furthermore it offers a button to trigger the health check.
 This layout is limited to its minimum.  
 
 # Cloud Deployment
+The whole system is deployed on AWS based on the architecture displayed below:  
+  
+![Architecture](images\high_level_cloud_architecture.png)
+
+This architecture uses AWS Fargate to manage and orchestrate the different services/containers.  
+Each service is deployed in its own subnet to maintain modularity and isolation.  
+- Data stream and anomaly detection services run in private subnets.
+- Dashboard runs in a public subnet to allow external access.
+
+Currently the Internet Gateway (IGW) is not secured by services such as AWS WAF, as this deployment is only for testing. In a productive environment would run within a company-private network, making WAF etc. unnecessary.  
+For development a NAT Gateway is used to allow services to pull the frequently updated container images. In a production environment ECR (Elastic Container Registry) is recommended for better security and (cost) efficiency.  
+
+# How to run the system
+**The modification of features was not tested!**
+
+1. Feature configuration
+- Check and modify the [features configuration](src\production\stream_data\features_config.json) file located in:
+```bash
+src/production/stream_data
+```
+- A how to is provided [here](CONFIGURE_FEATURES.md).
+
+2. Data generation
+- Modify the amount of data to be generated and run the script.
+- Optional: Run the data visualization script to get an idea how the generated data looks like. Depending on your system that might take a while...
+- The files are located here:
+```bash
+src/data_generation
+```
+
+3. Model training and testing
+- Run the model training script.  
+- Run the testing script.  
+- Based on the results adjust the model parameters for the One Class SVM.  
+- The needed files are located here:
+```bash
+src/model_training
+```
+
+4. Adjust the dashboard
+- Adjust the dashboard to the new features, so that the data is shown correctly.
+- The dashboard HTML is located here:
+```bash
+src/production/dashboard/templates
+```
+
+5. Create new docker images
+- Create new docker images for all three services.
+```bash
+src/production/dashboard
+```
+```bash
+src/production/stream_data
+```
+```bash
+src/production/anomaly_detection
+```
+- The python scripts for data stream, anomaly detection and the dashboard should not require any updates (as long as only features are changed).
+- The Dockerfiles should not require any updates.  
+- Modify the image names in the docker-compose:
+```bash
+src/production
+```
+
+6. Update Terraform
+- Update the image names within the main.tf file.
+- Update the region (currently "eu-central-1") in the provider.tf file.
+  
+    
+**If there are errors occurring when following the guide above, please create an issue so that the code can be updated.**
