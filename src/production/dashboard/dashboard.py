@@ -5,6 +5,7 @@ import threading
 import time
 
 from collections import deque
+from datetime import datetime
 from flask import Flask, request, jsonify, render_template
 
 logging.basicConfig(level=logging.INFO)
@@ -38,13 +39,15 @@ def sort_data():
     logger.info("Sorting started")
     while True:
         try:
+            #logger.info(f"Sorting - Data Input queue: {len(input_data_queue)}")
             input_data = secure_read_data(input_data_queue, input_data_lock)
-            logger.info(f"data to be sorted: {input_data}")
             if input_data:
                 if input_data['result']['is_anomaly']:
                     secure_append_data(anomaly_queue, input_data, anomaly_lock)
                 secure_append_data(output_data_queue, input_data, output_data_lock)
+                #logger.info("Data sorted successfully.")
             else:
+                #logger.info("Sorting - Waiting - Empty queue.")
                 time.sleep(1.0)
         except Exception as e:
             logger.error(f"Error sorting data: {e}")
@@ -55,12 +58,13 @@ dashboard_app = Flask(__name__)
 @dashboard_app.route("/receive_data", methods=["POST"])
 def receive_data():
     try:
+        #logger.info(f"AD - Data requested at: {datetime.now()}")
         input_data = request.json
         if not input_data:
             return jsonify({"error": "No input data provided"}), 400
 
         secure_append_data(input_data_queue, input_data, input_data_lock)
-        logger.info(f"Received and queued input data: {input_data}")
+        #logger.info(f"AD - Data appended to input data at: {datetime.now()}")
         return jsonify({"message": "Data received successfully"}), 200
     
     except Exception as e:
@@ -74,11 +78,13 @@ def index():
 
 @dashboard_app.route("/get_latest_data", methods=["GET"])
 def get_latest_data():
-    logger.info("data requested")
+    #logger.info(f"Dashboard - Data requested at {datetime.now()}")
+    #logger.info(f"Dashboard - Output queue size {len(output_data_queue)}")
     try:
         new_output_data = secure_read_data(output_data_queue, output_data_lock)
         new_anomaly_data = secure_read_data(anomaly_queue, anomaly_lock)
-        logger.info(f"data to be sent: general: {new_output_data} & anomaly: {new_anomaly_data}")
+        #logger.info(f"Dashboard - Data loaded from queue at {datetime.now()}")
+        #logger.info(f"Dashboard - Data Output Queue size {len(output_data_queue)}")
         if new_output_data:
             return jsonify({
                 "output_data": new_output_data,

@@ -8,6 +8,7 @@ import threading
 import time
 
 from collections import deque
+from datetime import datetime
 from flask import Flask, request, jsonify
 
 logging.basicConfig(level=logging.INFO)
@@ -20,6 +21,7 @@ MODEL_PATH = "ocsvm_model.pkl"
 DASHBOARD_SERVICE_URL = os.getenv("DASHBOARD_SERVICE_URL", "http://dashboard_container:5002/dashboard")
 
 MAX_QUEUE_LEN = 1000
+temp = 10.0              # Modify for sensitivity of prediction score
 
 def load_model(path:str):
     try:
@@ -31,7 +33,6 @@ def load_model(path:str):
         return None
 
 ocsvm_model = load_model(MODEL_PATH)
-
 
 input_data_queue = deque()
 output_data_queue = deque()
@@ -62,6 +63,26 @@ def secure_append_left_data(queue, data, queue_lock):
         queue.appendleft(data)
 
 
+def normalize_scores(score, temp=10.0):
+    if temp <= 0:
+        temp = 10.0
+        logger.warning("Temp set too low, changed to standard value of 10.")
+    return 1 / (1 + np.exp(-score / temp))
+
+
+def calc_sensor_data_time(data: pd.DataFrame):
+    sorted_data = data.sort_values(by="timestamp")
+    time_differences = sorted_data["timestamp"].diff().dropna()
+    
+    avg_time = time_differences.mean().total_seconds()
+    return avg_time
+
+def calc_anomaly_ratio(data: pd.DataFrame):
+    anomaly_count = data["is_anomaly"].sum()
+    total_count = len(data)
+    anomaly_ratio = (anomaly_count/total_count) * 100
+    return anomaly_ratio
+
 def anomaly_detection():
     expected_features = ocsvm_model.feature_names_in_
 
@@ -77,17 +98,20 @@ def anomaly_detection():
                 data_array = np.array([[input_data[feature] for feature in expected_features]])
                 data_df = pd.DataFrame(data_array, columns=expected_features)
                 
+                decision_score = ocsvm_model.decision_function(data_df)[0]
+                probability = normalize_scores(decision_score)
                 prediction = ocsvm_model.predict(data_df)
                 is_anomaly = bool(prediction[0] == -1)
                 
                 result = {
                     "is_anomaly": is_anomaly,
+                    "anomaly_probability" : probability,
                     "details": "Anomaly detected" if is_anomaly else "Normal behavior"
                 }
                 
                 output_data = {
                     "data": input_data,
-                    "result": result
+                    "result": result,
                 }
                 secure_append_data(output_data_queue, output_data, output_data_lock)
                 
@@ -127,45 +151,77 @@ def detection_service():
         
 def send_data_to_dashboard():
     while True:
+        logger.info(f"Transfer - triggered at {datetime.now()} - data queue len: {len(output_data_queue)}")
         transfer_data = secure_read_data(output_data_queue, output_data_lock)
         if transfer_data:
             try:
                 dashboard_response = requests.post(DASHBOARD_SERVICE_URL, json=transfer_data)
                 if dashboard_response.status_code == 200:
-                    logger.info("Data successfully sent to dashboard.")
+                    logger.info(f"Transfer - Data sent at {datetime.now()}")
                 else:
                     logger.error(f"Failed to forward data. Error: {dashboard_response.status_code}")
                     secure_append_left_data(output_data_queue, transfer_data, output_data_lock)
             except Exception as e:
                 logger.error(f"Error sending data to the dashboard: {e}")
         else:
-            logger.info("No queued data.")
+            logger.info("Transfer - No queued data.")
             time.sleep(1.0)
 
 
 @anomaly_detection_app.route("/health_check", methods=["POST"])
 def check_model_health():
+    logger.info("Triggered health check")
+    base_data = temp_data
     try:
         if ocsvm_model is None:
             logger.error("Model is not loaded correctly.")
             return jsonify({"status": "fail", "message": "Model is not loaded."}), 500
     
-        if temp_data.empty:
-            logger.warning("Temp data is empty. No recent data processed.")
-            return jsonify({"status": "warning", "message": "No recent data processed."}), 200
-        
         input_queue_size = len(input_data_queue)
         output_queue_size = len(output_data_queue)
         logger.info(f"Input queue size: {input_queue_size}, Output queue size: {output_queue_size}")
-        if input_queue_size > 900:
-            if output_queue_size > 900:
-                return jsonify({"status": "warning", "message": "Input and output data queues are almost full."}), 200
-            else:
-                return jsonify({"status": "warning", "message": "Input queue is almost full."}), 200
-        elif output_queue_size > 900:
-            return jsonify({"status": "warning", "message": "Output queue is almost full."}), 200
+        
+        if input_queue_size > 1000:
+            input_queue_status = "Warning - Queue full."
+        elif input_queue_size > 900:
+            input_queue_status = "Warning - Queue almost full."
         else:
-            return jsonify({"status": "warning", "message": "System works fine."}), 200
+            input_queue_status = "Queue size is healthy."
+        
+        if output_queue_size > 1000:
+            output_queue_status = "Warning - Queue full."
+        elif output_queue_size > 900:
+            output_queue_status = "Warning - Queue almost full."
+        else:
+            output_queue_status = "Queue size is healthy."
+        avg_time = 0
+        anomaly_ratio = 0
+        
+        logger.info(f"type base data: {type(base_data)}")
+
+        base_data['timestamp'] = pd.to_datetime(base_data['timestamp'], errors='coerce')
+        base_data['temperature'] = pd.to_numeric(base_data['temperature'], errors='coerce')
+        base_data['humidity'] = pd.to_numeric(base_data['humidity'], errors='coerce')
+        base_data['noise_level'] = pd.to_numeric(base_data['noise_level'], errors='coerce')
+
+        if not base_data.empty:
+            logger.info(f"Base data not empty and of type: {type(base_data)}")
+            avg_time = calc_sensor_data_time(base_data)
+            anomaly_ratio = calc_anomaly_ratio(base_data)
+        else:
+            logger.warning("Base data is empty. Skipping calculation for avg_time and anomaly_ratio.")
+        
+        health_status = {
+            "status" : "Anomaly detection is running.",
+            "input_queue_size" : input_queue_size,
+            "input_queue_status" : input_queue_status,
+            "output_queue_size": output_queue_size,
+            "output_queue_status" : output_queue_status,
+            "avg_time" : avg_time,
+            "anomaly_ratio" : anomaly_ratio
+        }
+        logger.info(health_status)
+        return jsonify(health_status), 200
     except Exception as e:
         logger.error(f"Health check failed: {e}")
         return jsonify({"status": "fail", "message": str(e)}), 500    

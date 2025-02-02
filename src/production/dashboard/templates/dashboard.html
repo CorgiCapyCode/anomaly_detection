@@ -16,12 +16,12 @@
 
                 if (data.output_data) {
                     outputData.push(data.output_data);
-                    if (outputData.length > 10) outputData.shift(); // Keep only the last 10
+                    if (outputData.length > 10) outputData.shift();
                 }
 
                 if (data.anomaly_data) {
                     anomalyData.push(data.anomaly_data);
-                    if (anomalyData.length > 10) anomalyData.shift(); // Keep only the last 10
+                    if (anomalyData.length > 10) anomalyData.shift();
                 }
 
                 updateTable(outputData, "general-table");
@@ -48,12 +48,19 @@
                 const tempCell = row.insertCell(1);
                 const humCell = row.insertCell(2);
                 const noiseCell = row.insertCell(3);
-                const resultCell = row.insertCell(4);
+                const scoreCell = row.insertCell(4);
+                const resultCell = row.insertCell(5);
 
                 timeCell.textContent = new Date(dataRows[i].data.timestamp).toLocaleString();
                 tempCell.textContent = dataRows[i].data.temperature.toFixed(2) + "°C";
                 humCell.textContent = dataRows[i].data.humidity.toFixed(2) + "%";
-                noiseCell.textContent = dataRows[i].data.noise_level.toFixed(2) + " dB";
+                noiseCell.textContent = dataRows[i].data.noise_level.toFixed(2) + "dB";
+
+                const anomalyScore = dataRows[i].result.anomaly_probability !== undefined 
+                    ? (dataRows[i].result.anomaly_probability * 100).toFixed(2) + "%" 
+                    : "N/A";
+                scoreCell.textContent = anomalyScore;
+
                 resultCell.textContent = dataRows[i].result.details;
 
                 if (dataRows[i].result.is_anomaly) {
@@ -69,14 +76,22 @@
                 const data = await response.json();
 
                 const statusElement = document.getElementById("health-status");
-                statusElement.textContent = `Status: ${data.status} - ${data.message}`;
                 
+                statusElement.innerHTML = "";
+
+                statusElement.innerHTML += `<strong>Status:</strong> ${data.status}<br>`;
+
                 if (data.status === "fail") {
                     statusElement.style.color = "red";
-                } else if (data.status === "warning") {
-                    statusElement.style.color = "orange";
+                    statusElement.innerHTML += `<strong>Message:</strong> ${data.message}<br>`;
                 } else {
                     statusElement.style.color = "green";
+                    statusElement.innerHTML += `<strong>Input Queue Size:</strong> ${data.input_queue_size}<br>`;
+                    statusElement.innerHTML += `<strong>Input Queue Status:</strong> ${data.input_queue_status}<br>`;
+                    statusElement.innerHTML += `<strong>Output Queue Size:</strong> ${data.output_queue_size}<br>`;
+                    statusElement.innerHTML += `<strong>Output Queue Status:</strong> ${data.output_queue_status}<br>`;
+                    statusElement.innerHTML += `<strong>Average Time:</strong> ${data.avg_time} seconds<br>`;
+                    statusElement.innerHTML += `<strong>Anomaly Ratio:</strong> ${data.anomaly_ratio}%<br>`;
                 }
             } catch (error) {
                 console.error("Error checking health:", error);
@@ -125,6 +140,7 @@
             <th>Temperature</th>
             <th>Humidity</th>
             <th>Noise Level</th>
+            <th>Prediction Score</th>
             <th>Result</th>
         </tr>
     </table>
@@ -136,6 +152,7 @@
             <th>Temperature</th>
             <th>Humidity</th>
             <th>Noise Level</th>
+            <th>Prediction Score</th>
             <th>Result</th>
         </tr>
     </table>
@@ -143,6 +160,6 @@
     <!-- Health Check Section -->
     <h3>System Health Check</h3>
     <button onclick="triggerHealthCheck()">Check Health</button>
-    <p id="health-status"></p> <!-- This is where the health status will be displayed -->
+    <p id="health-status"></p>
 </body>
 </html>

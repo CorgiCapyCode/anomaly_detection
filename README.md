@@ -165,6 +165,10 @@ It uses the same buffer method as used for the model deployment to ensure all da
 Furthermore it offers a button to trigger the health check.  
 This layout is limited to its minimum.  
 
+To see the the dashboard in your browser:  
+- Running locally (e.g. via Docker): http://localhost:5002
+- Running on AWS: Search for the public IP address and add *:5002*  
+
 # Cloud Deployment
 The whole system is deployed on AWS based on the architecture displayed below:  
   
