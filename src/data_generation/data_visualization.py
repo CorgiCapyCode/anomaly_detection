@@ -15,7 +15,6 @@ def save_plot(feature: str, df: pd.DataFrame):
         feature (str): Feature name
         df (pd.DataFrame): Data for the plots.
     """
-
     plt.figure(figsize=(40, 6))
     plt.plot(df['timestamp'], df[feature], label=feature)
     plt.title(f'{feature} over Time')
@@ -29,6 +28,7 @@ def save_plot(feature: str, df: pd.DataFrame):
     plt.savefig(output_file)
     plt.close()
 
+
 def worker(features: list, df: pd.DataFrame, queue):
     """
     Worker that processes a chunk of features.
@@ -41,6 +41,7 @@ def worker(features: list, df: pd.DataFrame, queue):
     for feature in features:
         save_plot(feature=feature, df=df)
         queue.put(f'{feature} saved')
+
 
 def run_plotting(features: list, df: pd.DataFrame):
     """

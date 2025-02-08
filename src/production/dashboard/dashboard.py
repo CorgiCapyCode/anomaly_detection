@@ -23,6 +23,14 @@ input_data_lock = threading.Lock()
 output_data_lock = threading.Lock()
 
 def secure_append_data(queue, data, queue_lock):
+    """
+    Locks the thread while appending data to the queue. Ensures that the queue does not exceed the maximum length.
+    
+    Args:
+        queue (deque): Queue (buffer) where the data is appended.
+        data: The data to be appended to the queue.
+        queue_lock (threading.Lock): Locking the thread to ensure that the data is not corrupted by other threads.
+    """
     with queue_lock:
         if len(queue)  >= MAX_QUEUE_LEN:
             queue.popleft()
@@ -30,12 +38,22 @@ def secure_append_data(queue, data, queue_lock):
         queue.append(data)
 
 def secure_read_data(queue, queue_lock):
+    """
+    Locks the thread while reading data from the queue. Removes the read data.
+    
+    Args:
+        queue (deque): Queue which serves as the source.
+        queue_lock (threading.Lock): Locking the thread to ensure that the data is not corrupted by other threads.
+    """
     with queue_lock:
         if queue:
             return queue.popleft()
         return None
 
 def sort_data():
+    """
+    Checks the incoming data for being anomalies and appends the data to the correct queues.
+    """
     logger.info("Sorting started")
     while True:
         try:
@@ -57,6 +75,9 @@ dashboard_app = Flask(__name__)
 
 @dashboard_app.route("/receive_data", methods=["POST"])
 def receive_data():
+    """
+    Takes the output of the anomaly detection and appends it to the input queue.
+    """
     try:
         #logger.info(f"AD - Data requested at: {datetime.now()}")
         input_data = request.json
@@ -73,11 +94,17 @@ def receive_data():
 
 @dashboard_app.route("/")
 def index():
+    """
+    Generates the overall layout of the dashboard.
+    """
     logger.info("dashboard rendered")
     return render_template("dashboard.html")
 
 @dashboard_app.route("/get_latest_data", methods=["GET"])
 def get_latest_data():
+    """
+    Loads the data to the dashboard.
+    """
     #logger.info(f"Dashboard - Data requested at {datetime.now()}")
     #logger.info(f"Dashboard - Output queue size {len(output_data_queue)}")
     try:
@@ -104,7 +131,9 @@ def get_latest_data():
 
 @dashboard_app.route("/check_health", methods=["GET"])
 def check_health():
-    """Endpoint to call the anomaly detection health check and return the result."""
+    """
+    Endpoint to call the anomaly detection health check and return the result.
+    """
     try:
         response = requests.post(DETECTION_SERVICE_URL, timeout=5)
         response_data = response.json()
@@ -115,6 +144,9 @@ def check_health():
 
 
 def start_background_thread():
+    """
+    Starts the sorting process.
+    """
     logger.info("Starting sorting thread...")
     thread = threading.Thread(target=sort_data, daemon=True)
     thread.start()

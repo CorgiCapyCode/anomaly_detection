@@ -24,6 +24,14 @@ MAX_QUEUE_LEN = 1000
 temp = 10.0              # Modify for sensitivity of prediction score
 
 def load_model(path:str):
+    """
+    Load the model data.
+    Args:
+        path (str): The path to the model data (PKL).
+    
+    Returns:
+        model: The loaded model.
+    """
     try:
         model = joblib.load(path)
         logger.info("Model loaded successfully.")
@@ -43,6 +51,14 @@ output_data_lock = threading.Lock()
 temp_data_lock = threading.Lock()
 
 def secure_append_data(queue, data, queue_lock):
+    """
+    Locks the thread while appending data to the queue. Ensures that the queue does not exceed the maximum length.
+    
+    Args:
+        queue (deque): Queue (buffer) where the data is appended.
+        data: The data to be appended to the queue.
+        queue_lock (threading.Lock): Locking the thread to ensure that the data is not corrupted by other threads.
+    """
     with queue_lock:
         if len(queue)  >= MAX_QUEUE_LEN:
             queue.popleft()
@@ -50,12 +66,27 @@ def secure_append_data(queue, data, queue_lock):
         queue.append(data)
 
 def secure_read_data(queue, queue_lock):
+    """
+    Locks the thread while reading data from the queue. Removes the read data.
+    
+    Args:
+        queue (deque): Queue which serves as the source.
+        queue_lock (threading.Lock): Locking the thread to ensure that the data is not corrupted by other threads.
+    """
     with queue_lock:
         if queue:
             return queue.popleft()
         return None
 
 def secure_append_left_data(queue, data, queue_lock):
+    """
+    Locks the thread while appending data to the queue on the left side. Ensures that the queue does not exceed the maximum length.
+    
+    Args:
+        queue (deque): Queue (buffer) where the data is appended.
+        data: The data to be appended to the queue.
+        queue_lock (threading.Lock): Locking the thread to ensure that the data is not corrupted by other threads.
+    """
     with queue_lock:
         if len(queue)  >= MAX_QUEUE_LEN:
             queue.popleft()
@@ -64,6 +95,16 @@ def secure_append_left_data(queue, data, queue_lock):
 
 
 def normalize_scores(score, temp=10.0):
+    """ 
+    Used to normalize the score (distance to margin) in order to create a class membership probability.
+    
+    Args:
+        score: The distance to the margin to be normalized.
+        temp: Used as a factor for normalizing. Higher values lead to "more mixed probabilities".
+        
+    Return:
+        New score that equals a probability.
+    """
     if temp <= 0:
         temp = 10.0
         logger.warning("Temp set too low, changed to standard value of 10.")
@@ -71,6 +112,14 @@ def normalize_scores(score, temp=10.0):
 
 
 def calc_sensor_data_time(data: pd.DataFrame):
+    """
+    Calculates the time delta between the generated data stored in the temp-data storage.
+    Used for health check.
+    Args:
+        data (pd.DataFrame): Dataset with timestamp.
+    Returns:
+        avg_time: Average time between the generated data.
+    """
     sorted_data = data.sort_values(by="timestamp")
     time_differences = sorted_data["timestamp"].diff().dropna()
     
@@ -78,12 +127,23 @@ def calc_sensor_data_time(data: pd.DataFrame):
     return avg_time
 
 def calc_anomaly_ratio(data: pd.DataFrame):
+    """
+    Calculates the anomaly ratio.
+    Used for health check.
+    Args:
+        data (pd.DataFrame): Dataset with timestamp.
+    Return:
+        anomaly_ratio: The anomaly ration in the data.        
+    """
     anomaly_count = data["is_anomaly"].sum()
     total_count = len(data)
     anomaly_ratio = (anomaly_count/total_count) * 100
     return anomaly_ratio
 
 def anomaly_detection():
+    """
+    Runs the anomaly detection algorithm and appends the data to the buffers.
+    """
     expected_features = ocsvm_model.feature_names_in_
 
     while True:
@@ -135,6 +195,9 @@ anomaly_detection_app = Flask(__name__)
 
 @anomaly_detection_app.route("/detection_service", methods=["POST"])
 def detection_service():
+    """
+    Endpoint which starts the anomaly detection.
+    """
     try:
         input_data = request.json
         if not input_data:
@@ -150,6 +213,9 @@ def detection_service():
 
         
 def send_data_to_dashboard():
+    """
+    Sends the data from the buffer to the dashboard regularly.    
+    """
     while True:
         logger.info(f"Transfer - triggered at {datetime.now()} - data queue len: {len(output_data_queue)}")
         transfer_data = secure_read_data(output_data_queue, output_data_lock)
@@ -170,6 +236,9 @@ def send_data_to_dashboard():
 
 @anomaly_detection_app.route("/health_check", methods=["POST"])
 def check_model_health():
+    """
+    Used to check the model health (some parameters).
+    """
     logger.info("Triggered health check")
     base_data = temp_data
     try:
@@ -228,6 +297,9 @@ def check_model_health():
 
 
 def start_anomaly_detection():
+    """
+    Starts the anomaly detection.
+    """
     logger.info("Starting anomaly detection process...")
     anomaly_detection()
             

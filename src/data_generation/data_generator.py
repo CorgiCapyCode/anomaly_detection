@@ -44,6 +44,7 @@ def generate_data_per_feature(distribution: str, params, sample_size: int):
     else:
         raise ValueError(f"Distribution not supported: {distribution}")    
 
+
 def generate_dataset(sample_size: int =50000, timestamp_interval: int =5, features_config=None):
     """
     Generates a dataset according to the loaded features_config.
@@ -87,7 +88,8 @@ def generate_dataset(sample_size: int =50000, timestamp_interval: int =5, featur
     df = pd.DataFrame(data)
     
     return df
-           
+
+          
 def load_features_config(file_path):
     """
     Load the features configuration from a JSON file.

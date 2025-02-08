@@ -35,7 +35,7 @@
         function updateTable(data, tableId) {
             const table = document.getElementById(tableId);
             
-            // Clear the existing rows (except the header)
+            
             while (table.rows.length > 1) {
                 table.deleteRow(1);
             }
@@ -64,7 +64,7 @@
                 resultCell.textContent = dataRows[i].result.details;
 
                 if (dataRows[i].result.is_anomaly) {
-                    row.style.backgroundColor = "#ffcccc";  // Highlight anomalies in red
+                    row.style.backgroundColor = "#ffcccc";  // Highlight anomalies
                 }
             }
         }

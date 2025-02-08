@@ -30,6 +30,7 @@ def load_dataset(file_path: str):
         print(f"Error when trying to load the csv file. Code: {e}")
         return None
 
+
 def load_model(path: str):
     """
     Load the model data.
@@ -45,6 +46,7 @@ def load_model(path: str):
     except Exception as e:
         print(f"Error when trying to load the model. Code: {e}")
         return None        
+
 
 def kmeans_testing(test_data: pd.DataFrame, model, threshold: float):
     """
@@ -73,6 +75,7 @@ def kmeans_testing(test_data: pd.DataFrame, model, threshold: float):
     
     return results
 
+
 def ocsvm_testing(test_data: pd.DataFrame, model):
     """
     Test the One Support Vector Machine model.
@@ -96,6 +99,7 @@ def ocsvm_testing(test_data: pd.DataFrame, model):
     results["anomaly"] = predictions == -1
     
     return results
+
 
 def base_metrics(df: pd.DataFrame):
     """
@@ -147,7 +151,6 @@ def result_comparison(kmeans_results: pd.DataFrame, ocsvm_results: pd.DataFrame)
     only_ocsvm_anomaly = ((merged_results["anomaly_kmeans"] == 0) & (merged_results["anomaly_ocsvm"] == 1)).sum()
     both_anomaly = ((merged_results["anomaly_kmeans"] == 1) & (merged_results["anomaly_ocsvm"] == 1)).sum()
 
-
     intersection_over_union = both_anomaly / (kmeans_anomalies+ocsvm_anomalies-both_anomaly)
     
     merged_results.to_csv("src/data/test_results/merged_lists.csv")
@@ -156,6 +159,7 @@ def result_comparison(kmeans_results: pd.DataFrame, ocsvm_results: pd.DataFrame)
     print(f"Only one model (K-Means & OCSVM):  {only_kmeans_anomaly}        {only_ocsvm_anomaly}")
     print(f"Anomalies in both: {both_anomaly}")
     print(f"Intersection over Union (Jaccard-Index): {intersection_over_union}")
+
 
 def kmeans_visualization(df: pd.DataFrame, kmeans_model, path: str, num_points: int =100):
     """

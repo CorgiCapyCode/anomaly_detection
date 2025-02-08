@@ -33,19 +33,42 @@ interval = 1 #seconds
 streaming_status = False
 stop_streaming = Event()
 
+
 def graceful_shutdown(signal, frame):
+    """ Function used to terminate the data stream manually. """
     logger.info("Gracefully shutting down the streaming service.")
     stop_streaming.set()
-    
+
+
 signal.signal(signal.SIGINT, graceful_shutdown)
 
 
 def load_features_config(file_path):
+    """
+    Load the features configuration from a JSON file.
+    
+    Args:
+        file_path (str): Path to the JSON file containing the feature configuration.
+        
+    Returns:
+        json: Features configuration.
+    """
     with open(file_path, "r") as file:
         return json.load(file)
 
 
 def generate_sensor_value(distribution: str, params, sample_size: int =1):
+    """
+    Generates data based on the definitions in the features config.
+    
+    Args:
+        distribution (str): Information about the underlying distribution.
+        params: Contains the needed parameters to define the distribution.
+        sample_size (int): Determines how many data points are generated. Take 1 for data stream.
+        
+    Returns:
+        Random value for the sensor.
+    """
 
     if distribution == "normal":
         return np.random.normal(params["mean"], params["std"], sample_size)
@@ -72,6 +95,16 @@ def generate_sensor_value(distribution: str, params, sample_size: int =1):
 
 
 def generate_data(features_config):
+    """
+    Triggers the generation of data based on the configuration.
+    Replaces randomly values with anomalies.
+    
+    Args:
+        features_config: Contains the feature definition.
+        
+    Returns:
+        data_point: Contains values for the sensors plus a timestamp.
+    """
 
     data_point = {"timestamp": datetime.now().isoformat()}
 
@@ -98,7 +131,11 @@ def generate_data(features_config):
 
 
 def stream_data():
-    
+    """
+    Generates a stream of data.
+    Stops automatically after defined time. Infinite mode is possible.
+    Sends the data to the detection service.
+    """
     features_config = load_features_config(FEATURES_CONFIG_PATH)
     
     if duration == 0:
@@ -148,9 +185,12 @@ def stream_data():
                 
         time.sleep(waiting_time)
 
+
 stream_app = Flask(__name__)
 
+
 def start_streaming():
+    """Starts the streaming service."""
     global streaming_status
     
     if not streaming_status:
@@ -163,11 +203,14 @@ def start_streaming():
     else:
         logger.info("Streaming is already active.")
 
+
 @stream_app.route("/restart_streaming", methods=["POST"])
 def restart_stream():
+    """ Re-starts the streaming service."""
     logger.info("Restarting the application.")
     start_streaming()
     return jsonify({"message": "Streaming restarted."}, 200)
+
 
 if __name__ == "__main__":
     start_streaming()
